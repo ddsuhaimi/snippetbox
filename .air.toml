@@ -1,0 +1,20 @@
+
+# Config file for air
+[build]
+cmd = "go build -o ./tmp/main ./cmd/web"
+bin = "./tmp/main"
+full_bin = "APP_ENV=dev ./tmp/main"
+delve = false
+work_dir = "."
+build_delay = 200
+force_reload = false
+kill_delay = 500
+include_ext = ["go", "tmpl", "html"]
+exclude_dir = ["assets", "tmp", "vendor"]
+exclude_file = []
+include_dir = ["."]
+exclude_regex = ["_test\\.go"]
+exclude_changed_only = false
+
+[log]
+level = "info"
