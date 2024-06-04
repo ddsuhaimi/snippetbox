@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/ddsuhaimi/snippetbox/internal/models"
+	"github.com/ddsuhaimi/snippetbox/internal/validator"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -46,21 +47,41 @@ func (app *application) snippetView(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) snippetCreate(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Display the form for creating a new snippet..."))
+	data := app.newTemplateData(r)
+	data.Form = snippetCreateForm{
+		Expires: 365,
+	}
+	app.render(w, http.StatusOK, "create.tmpl", data)
+}
+
+type snippetCreateForm struct {
+	Title               string `form:"title"`
+	Content             string `form:"content"`
+	Expires             int    `form:"expires"`
+	validator.Validator `form:"-"`
 }
 
 func (app *application) snippetCreatePost(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.Header().Set("Allow", http.MethodPost)
-		app.clientError(w, http.StatusMethodNotAllowed)
+	var form snippetCreateForm
+	err := app.decodePostForm(r, &form)
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
 		return
 	}
 
-	title := "snail"
-	content := "content"
-	expires := 7
+	form.CheckField(validator.NotBlank(form.Title), "title", "This field can't be blank")
+	form.CheckField(validator.MaxChars(form.Title, 100), "title", "This field can't exceed 100 characters")
+	form.CheckField(validator.NotBlank(form.Content), "content", "This field can't be blank")
+	form.CheckField(validator.PermittedInt(form.Expires, 1, 7, 365), "expires", "This field must equal 1, 7 or 365")
 
-	id, err := app.snippets.Insert(title, content, expires)
+	if !form.Valid() {
+		data := app.newTemplateData(r)
+		data.Form = form
+		app.render(w, http.StatusUnprocessableEntity, "create.tmpl", data)
+		return
+	}
+
+	id, err := app.snippets.Insert(form.Title, form.Content, form.Expires)
 	if err != nil {
 		app.serverError(w, err)
 		return
